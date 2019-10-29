@@ -27,6 +27,7 @@ var (
 
 type emailToSend struct {
 	To       string `json:"to"`
+	Cc       string `json:"cc"`
 	Subject  string `json:"subject"`
 	HTMLBody string `json:"html_body"`
 	TextBody string `json:"text_body"`
@@ -42,6 +43,12 @@ func (e *emailToSend) trimFields() {
 		tos[key] = strings.TrimSpace(to)
 	}
 	e.To = strings.Join(tos, ",")
+
+	carbonCopies := strings.Split(e.Cc, ",")
+	for key, cc := range carbonCopies {
+		tos[key] = strings.TrimSpace(cc)
+	}
+	e.Cc = strings.Join(carbonCopies, ",")
 
 	e.Subject = strings.TrimSpace(e.Subject)
 	e.HTMLBody = strings.TrimSpace(e.HTMLBody)
@@ -77,10 +84,11 @@ func (e *emailToSend) validate() error {
 }
 
 func main() {
-	amqpUrl := getEnv("AMQP_URL")
+	getEnv("AMQP_URL")
+	getEnv("AMQP_QUEUE_NAME")
 	getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
 
-	for message := range setUpRabbitMQ(amqpUrl) {
+	for message := range rabbitMQMessageChan() {
 		emailToSendMessage := &emailToSend{}
 		err := json.Unmarshal(message.Body, emailToSendMessage)
 		if err != nil {
@@ -125,6 +133,10 @@ func sendEmail(emailToSendMessage *emailToSend) error {
 	email := gomail.NewMessage()
 	email.SetHeader("From", fromAddress)
 	email.SetHeader("To", strings.Split(emailToSendMessage.To, ",")...)
+	cc := strings.Split(emailToSendMessage.Cc, ",")
+	if len(cc) > 0 {
+		email.SetHeader("Cc", cc...)
+	}
 	email.SetHeader("Subject", emailToSendMessage.Subject)
 	if len(emailToSendMessage.HTMLBody) > 0 {
 		email.SetBody("text/html", emailToSendMessage.HTMLBody)
@@ -160,7 +172,9 @@ func sendEmail(emailToSendMessage *emailToSend) error {
 	return nil
 }
 
-func setUpRabbitMQ(amqpUrl string) <-chan amqp.Delivery {
+func rabbitMQMessageChan() <-chan amqp.Delivery {
+	amqpUrl := getEnv("AMQP_URL")
+	amqpQueueName := getEnv("AMQP_QUEUE_NAME")
 	amqpConn, err := amqp.Dial(amqpUrl)
 	if err != nil {
 		log.Fatal(err)
@@ -170,7 +184,7 @@ func setUpRabbitMQ(amqpUrl string) <-chan amqp.Delivery {
 		log.Fatal(err)
 	}
 	amqpChannel.Qos(1, 0, false)
-	amqpQueue, err := amqpChannel.QueueDeclare("manifests_to_ftp_upload", true, false, false, false, nil)
+	amqpQueue, err := amqpChannel.QueueDeclare(amqpQueueName, true, false, false, false, nil)
 	if err != nil {
 		log.Fatal(err)
 	}

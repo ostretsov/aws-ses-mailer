@@ -72,6 +72,12 @@ func (e *emailToSend) validate() error {
 		}
 	}
 
+	for _, cc := range strings.Split(e.Cc, ",") {
+		if !emailRegexp.MatchString(cc) {
+			return fmt.Errorf(`"%s" is not valid email`, cc)
+		}
+	}
+
 	if len(e.Subject) == 0 {
 		return errors.New("subject must not be empty")
 	}

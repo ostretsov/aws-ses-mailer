@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ses"
 	"github.com/streadway/amqp"
@@ -21,9 +20,20 @@ import (
 
 var (
 	errAWSSessionCreation = errors.New("aws session creation error")
-	errAWSSendingEmail    = errors.New("aws sending email error")
 	emailRegexp           = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
+
+type errAWSSendingEmail struct {
+	err error
+}
+
+func (e errAWSSendingEmail) Error() string {
+	return "aws sending email error: " + e.err.Error()
+}
+
+func (e errAWSSendingEmail) Unwrap() error {
+	return e.err
+}
 
 type email struct {
 	To       string        `json:"to"`
@@ -129,7 +139,7 @@ func main() {
 				message.Nack(false, true)
 				log.Fatal("message could not be decoded", message.Body)
 			}
-			if err == errAWSSendingEmail {
+			if _, ok := err.(*errAWSSendingEmail); ok {
 				log.Println(err)
 				message.Nack(false, true)
 				time.Sleep(5 * time.Minute)
@@ -177,16 +187,13 @@ func sendEmail(emailToSendMessage *email) error {
 	var emailRaw bytes.Buffer
 	email.WriteTo(&emailRaw)
 	input := &ses.SendRawEmailInput{
-		FromArn:       aws.String(""),
-		RawMessage:    &ses.RawMessage{Data: emailRaw.Bytes()},
-		ReturnPathArn: aws.String(""),
-		Source:        aws.String(""),
-		SourceArn:     aws.String(""),
+		RawMessage: &ses.RawMessage{Data: emailRaw.Bytes()},
 	}
 
 	_, err = svc.SendRawEmail(input)
+
 	if err != nil {
-		return errAWSSendingEmail
+		return errAWSSendingEmail{err: err}
 	}
 	return nil
 }

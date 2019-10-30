@@ -1,6 +1,8 @@
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestTrimAllFields(t *testing.T) {
 	email := email{

@@ -116,8 +116,8 @@ func (e *email) validate() error {
 
 func main() {
 	getEnv("AMQP_URL")
-	getEnv("AMQP_QUEUE_NAME")
-	getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
+	getEnv("AMQP_QUEUE")
+	getEnv("AWS_VERIFIED_FROM_EMAIL_ADDRESS")
 
 	for message := range rabbitMQMessageChan() {
 		emailToSendMessage := &email{}
@@ -152,7 +152,7 @@ func main() {
 }
 
 func sendEmail(emailToSendMessage *email) error {
-	fromAddress := getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
+	fromAddress := getEnv("AWS_VERIFIED_FROM_EMAIL_ADDRESS")
 	sess, err := session.NewSession()
 	if err != nil {
 		return errAWSSessionCreation
@@ -200,24 +200,31 @@ func sendEmail(emailToSendMessage *email) error {
 
 func rabbitMQMessageChan() <-chan amqp.Delivery {
 	amqpUrl := getEnv("AMQP_URL")
-	amqpQueueName := getEnv("AMQP_QUEUE_NAME")
-	amqpConn, err := amqp.Dial(amqpUrl)
-	if err != nil {
-		log.Fatal(err)
+	amqpQueueName := getEnv("AMQP_QUEUE")
+	var amqpConn *amqp.Connection
+	for {
+		conn, err := amqp.Dial(amqpUrl)
+		if err != nil {
+			log.Println("dial err", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		amqpConn = conn
+		break;
 	}
 	amqpChannel, err := amqpConn.Channel()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("channel init err", err)
 	}
 	amqpChannel.Qos(1, 0, false)
 	amqpQueue, err := amqpChannel.QueueDeclare(amqpQueueName, true, false, false, false, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("queue declaration err", err)
 	}
 
 	messageChannel, err := amqpChannel.Consume(amqpQueue.Name, "", false, false, false, false, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("message consumption err", err)
 	}
 
 	return messageChannel

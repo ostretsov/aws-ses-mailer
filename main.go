@@ -25,30 +25,34 @@ var (
 	emailRegexp           = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 )
 
-type emailToSend struct {
-	To       string `json:"to"`
-	Cc       string `json:"cc"`
-	Subject  string `json:"subject"`
-	HTMLBody string `json:"html_body"`
-	TextBody string `json:"text_body"`
-	Attaches []struct {
-		FileName                 string `json:"file_name"`
-		Base64EncodedFileContent string `json:"base64_encoded_file_content"`
-	} `json:"attaches"`
+type email struct {
+	To       string        `json:"to"`
+	Cc       string        `json:"cc"`
+	Subject  string        `json:"subject"`
+	HTMLBody string        `json:"html_body"`
+	TextBody string        `json:"text_body"`
+	Attaches []emailAttach `json:"attaches"`
 }
 
-func (e *emailToSend) trimFields() {
+type emailAttach struct {
+	FileName                 string `json:"file_name"`
+	Base64EncodedFileContent string `json:"base64_encoded_file_content"`
+}
+
+func (e *email) trimFields() {
 	tos := strings.Split(e.To, ",")
 	for key, to := range tos {
 		tos[key] = strings.TrimSpace(to)
 	}
 	e.To = strings.Join(tos, ",")
 
-	carbonCopies := strings.Split(e.Cc, ",")
-	for key, cc := range carbonCopies {
-		tos[key] = strings.TrimSpace(cc)
+	if len(e.Cc) > 0 {
+		carbonCopies := strings.Split(e.Cc, ",")
+		for key, cc := range carbonCopies {
+			tos[key] = strings.TrimSpace(cc)
+		}
+		e.Cc = strings.Join(carbonCopies, ",")
 	}
-	e.Cc = strings.Join(carbonCopies, ",")
 
 	e.Subject = strings.TrimSpace(e.Subject)
 	e.HTMLBody = strings.TrimSpace(e.HTMLBody)
@@ -60,11 +64,11 @@ func (e *emailToSend) trimFields() {
 	}
 }
 
-func (e *emailToSend) validate() error {
-	tos := strings.Split(e.To, ",")
-	if len(tos) == 0 {
+func (e *email) validate() error {
+	if len(e.To) == 0 {
 		return errors.New("there must be at least one recipient")
 	}
+	tos := strings.Split(e.To, ",")
 
 	for _, to := range tos {
 		if !emailRegexp.MatchString(to) {
@@ -72,9 +76,12 @@ func (e *emailToSend) validate() error {
 		}
 	}
 
-	for _, cc := range strings.Split(e.Cc, ",") {
-		if !emailRegexp.MatchString(cc) {
-			return fmt.Errorf(`"%s" is not valid email`, cc)
+	if len(e.Cc) > 0 {
+		ccopies := strings.Split(e.Cc, ",")
+		for _, cc := range ccopies {
+			if !emailRegexp.MatchString(cc) {
+				return fmt.Errorf(`"%s" is not valid carbon copy email`, cc)
+			}
 		}
 	}
 
@@ -95,7 +102,7 @@ func main() {
 	getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
 
 	for message := range rabbitMQMessageChan() {
-		emailToSendMessage := &emailToSend{}
+		emailToSendMessage := &email{}
 		err := json.Unmarshal(message.Body, emailToSendMessage)
 		if err != nil {
 			message.Nack(false, true)
@@ -126,7 +133,7 @@ func main() {
 	}
 }
 
-func sendEmail(emailToSendMessage *emailToSend) error {
+func sendEmail(emailToSendMessage *email) error {
 	fromAddress := getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-west-2")},
@@ -139,8 +146,8 @@ func sendEmail(emailToSendMessage *emailToSend) error {
 	email := gomail.NewMessage()
 	email.SetHeader("From", fromAddress)
 	email.SetHeader("To", strings.Split(emailToSendMessage.To, ",")...)
-	cc := strings.Split(emailToSendMessage.Cc, ",")
-	if len(cc) > 0 {
+	if len(emailToSendMessage.Cc) > 0 {
+		cc := strings.Split(emailToSendMessage.Cc, ",")
 		email.SetHeader("Cc", cc...)
 	}
 	email.SetHeader("Subject", emailToSendMessage.Subject)

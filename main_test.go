@@ -39,8 +39,8 @@ func TestTrimAllFields(t *testing.T) {
 	if email.Attaches[0].FileName != "file_name.pdf" {
 		t.Fatal("FileName trim", email.Attaches[0].FileName)
 	}
-	if email.Attaches[0].Base64EncodedFileContent != "file_content" {
-		t.Fatal("Base64EncodedFileContent trim", email.Attaches[0].Base64EncodedFileContent)
+	if email.Attaches[0].FileContentBase64Encoded != "file_content" {
+		t.Fatal("FileContentBase64Encoded trim", email.Attaches[0].FileContentBase64Encoded)
 	}
 }
 

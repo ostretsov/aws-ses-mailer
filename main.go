@@ -46,7 +46,7 @@ type email struct {
 
 type emailAttach struct {
 	FileName                 string `json:"file_name"`
-	Base64EncodedFileContent string `json:"base64_encoded_file_content"`
+	FileContentBase64Encoded string `json:"file_content_base64_encoded"`
 }
 
 func (e *email) trimFields() {
@@ -70,7 +70,7 @@ func (e *email) trimFields() {
 
 	for i, attach := range e.Attaches {
 		e.Attaches[i].FileName = strings.TrimSpace(attach.FileName)
-		e.Attaches[i].Base64EncodedFileContent = strings.TrimSpace(attach.Base64EncodedFileContent)
+		e.Attaches[i].FileContentBase64Encoded = strings.TrimSpace(attach.FileContentBase64Encoded)
 	}
 }
 
@@ -177,7 +177,7 @@ func sendEmail(emailToSendMessage *email) error {
 	}
 	for _, attach := range emailToSendMessage.Attaches {
 		email.Attach(attach.FileName, gomail.SetCopyFunc(func(w io.Writer) error {
-			fileContentDecoded, err := base64.StdEncoding.DecodeString(attach.Base64EncodedFileContent)
+			fileContentDecoded, err := base64.StdEncoding.DecodeString(attach.FileContentBase64Encoded)
 			if err != nil {
 				return err
 			}

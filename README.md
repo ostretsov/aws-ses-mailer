@@ -18,7 +18,7 @@ Expected queue message:
   "subject": "test message",
   "attaches": [
     {
-      "base64_encoded_file_content": "iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAIAAACAiijJAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAIElEQVQ4jWP8//8/A2WAiUL9o0aMGjFqxKgRo0YMlBEAiH0DK1dDnUsAAAAASUVORK5CYII=",
+      "file_content_base64_encoded": "iVBORw0KGgoAAAANSUhEUgAAABYAAAAXCAIAAACAiijJAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAIElEQVQ4jWP8//8/A2WAiUL9o0aMGjFqxKgRo0YMlBEAiH0DK1dDnUsAAAAASUVORK5CYII=",
       "file_name": "stub.png"
     }
   ]

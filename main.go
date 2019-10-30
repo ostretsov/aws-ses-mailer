@@ -126,6 +126,7 @@ func main() {
 			message.Nack(false, true)
 			log.Fatal("message could not be decoded", message.Body)
 		}
+		log.Println("new email message:", emailToSendMessage.Subject, emailToSendMessage.To)
 		emailToSendMessage.trimFields()
 		err = emailToSendMessage.validate()
 		if err != nil {
@@ -148,6 +149,7 @@ func main() {
 		}
 
 		message.Ack(false)
+		log.Println("email message successfully sent", emailToSendMessage.Subject, emailToSendMessage.To)
 	}
 }
 
@@ -210,7 +212,7 @@ func rabbitMQMessageChan() <-chan amqp.Delivery {
 			continue
 		}
 		amqpConn = conn
-		break;
+		break
 	}
 	amqpChannel, err := amqpConn.Channel()
 	if err != nil {

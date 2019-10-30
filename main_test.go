@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-func TestTrimFields(t *testing.T) {
+func TestTrimAllFields(t *testing.T) {
 	email := email{
 		To:       " email1@test.com, email2@test.com ,  email3@test.com",
 		Cc:       " email4@test.com, email5@test.com ,  email6@test.com",
@@ -19,6 +19,32 @@ func TestTrimFields(t *testing.T) {
 
 	email.trimFields()
 
+	if email.To != "email1@test.com,email2@test.com,email3@test.com" {
+		t.Fatal("To trim", email.To)
+	}
+	if email.Cc != "email4@test.com,email5@test.com,email6@test.com" {
+		t.Fatal("Cc trim", email.Cc)
+	}
+	if email.Subject != "test       subject" {
+		t.Fatal("Subject trim", email.Subject)
+	}
+	if email.HTMLBody != "html body" {
+		t.Fatal("HTMLBody trim", email.HTMLBody)
+	}
+	if email.TextBody != "text body" {
+		t.Fatal("TextBody trim", email.TextBody)
+	}
+	if email.Attaches[0].FileName != "file_name.pdf" {
+		t.Fatal("FileName trim", email.Attaches[0].FileName)
+	}
+	if email.Attaches[0].Base64EncodedFileContent != "file_content" {
+		t.Fatal("Base64EncodedFileContent trim", email.Attaches[0].Base64EncodedFileContent)
+	}
+}
+
+func TestTrimEmptyEmailDoesntEmitFatals(t *testing.T) {
+	email := email{}
+	email.trimFields()
 }
 
 func TestValidate(t *testing.T) {
@@ -81,6 +107,16 @@ func TestValidate(t *testing.T) {
 			email{To: "valid@email.com", Subject: "Wow", HTMLBody: "html body", TextBody: "text body", Cc: "valid@cc.com,invalid2@cc.com"},
 			true,
 			"",
+		},
+		{
+			email{To: "valid@email.com,valid@email.com", Cc: "valid2@email.com", Subject: "Wow", HTMLBody: "html body", TextBody: "text body"},
+			false,
+			`"valid@email.com" is used twice`,
+		},
+		{
+			email{To: "valid@email.com", Cc: "valid@email.com", Subject: "Wow", HTMLBody: "html body", TextBody: "text body"},
+			false,
+			`"valid@email.com" is used twice`,
 		},
 	}
 

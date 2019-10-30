@@ -41,15 +41,15 @@ type emailAttach struct {
 
 func (e *email) trimFields() {
 	tos := strings.Split(e.To, ",")
-	for key, to := range tos {
-		tos[key] = strings.TrimSpace(to)
+	for i, to := range tos {
+		tos[i] = strings.TrimSpace(to)
 	}
 	e.To = strings.Join(tos, ",")
 
 	if len(e.Cc) > 0 {
 		carbonCopies := strings.Split(e.Cc, ",")
-		for key, cc := range carbonCopies {
-			tos[key] = strings.TrimSpace(cc)
+		for i, cc := range carbonCopies {
+			carbonCopies[i] = strings.TrimSpace(cc)
 		}
 		e.Cc = strings.Join(carbonCopies, ",")
 	}
@@ -58,9 +58,9 @@ func (e *email) trimFields() {
 	e.HTMLBody = strings.TrimSpace(e.HTMLBody)
 	e.TextBody = strings.TrimSpace(e.TextBody)
 
-	for key, attach := range e.Attaches {
-		e.Attaches[key].FileName = strings.TrimSpace(attach.FileName)
-		e.Attaches[key].Base64EncodedFileContent = strings.TrimSpace(attach.Base64EncodedFileContent)
+	for i, attach := range e.Attaches {
+		e.Attaches[i].FileName = strings.TrimSpace(attach.FileName)
+		e.Attaches[i].Base64EncodedFileContent = strings.TrimSpace(attach.Base64EncodedFileContent)
 	}
 }
 
@@ -68,12 +68,16 @@ func (e *email) validate() error {
 	if len(e.To) == 0 {
 		return errors.New("there must be at least one recipient")
 	}
+	specifiedDestEmails := map[string]bool{}
 	tos := strings.Split(e.To, ",")
-
 	for _, to := range tos {
 		if !emailRegexp.MatchString(to) {
 			return fmt.Errorf(`"%s" is not valid email`, to)
 		}
+		if _, ok := specifiedDestEmails[to]; ok {
+			return fmt.Errorf(`"%s" is used twice`, to)
+		}
+		specifiedDestEmails[to] = true
 	}
 
 	if len(e.Cc) > 0 {
@@ -82,6 +86,10 @@ func (e *email) validate() error {
 			if !emailRegexp.MatchString(cc) {
 				return fmt.Errorf(`"%s" is not valid carbon copy email`, cc)
 			}
+			if _, ok := specifiedDestEmails[cc]; ok {
+				return fmt.Errorf(`"%s" is used twice`, cc)
+			}
+			specifiedDestEmails[cc] = true
 		}
 	}
 
@@ -135,9 +143,7 @@ func main() {
 
 func sendEmail(emailToSendMessage *email) error {
 	fromAddress := getEnv("AMAZON_VERIFIED_FROM_EMAIL_ADDRESS")
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-west-2")},
-	)
+	sess, err := session.NewSession()
 	if err != nil {
 		return errAWSSessionCreation
 	}

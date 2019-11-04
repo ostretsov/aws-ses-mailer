@@ -176,8 +176,9 @@ func sendEmail(emailToSendMessage *email) error {
 		email.SetBody("text/plain", emailToSendMessage.TextBody)
 	}
 	for _, attach := range emailToSendMessage.Attaches {
+		base64EncodedContent := attach.FileContentBase64Encoded
 		email.Attach(attach.FileName, gomail.SetCopyFunc(func(w io.Writer) error {
-			fileContentDecoded, err := base64.StdEncoding.DecodeString(attach.FileContentBase64Encoded)
+			fileContentDecoded, err := base64.StdEncoding.DecodeString(base64EncodedContent)
 			if err != nil {
 				return err
 			}

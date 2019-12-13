@@ -151,6 +151,8 @@ func main() {
 		message.Ack(false)
 		log.Println("email message successfully sent", emailToSendMessage.Subject, emailToSendMessage.To)
 	}
+
+	log.Fatal("must not be finished")
 }
 
 func sendEmail(emailToSendMessage *email) error {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -136,4 +137,34 @@ func TestValidate(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TODO
+func Test_createMail(t *testing.T) {
+	jsonEncodedMsg := []byte(`{
+  "attaches": [
+    {
+      "file_content_base64_encoded": "dGVzdCBpcyBvawo=",
+      "file_name": "JFK_18062148741_MAWB.pdf"
+    },
+    {
+      "file_content_base64_encoded": "dGVzdCBpcyBzdXBlciBvawo=",
+      "file_name": "TestOnlyUser_18062148741.pdf"
+    },
+    {
+      "file_content_base64_encoded": "FROM,CLIENT,PROCESSING CATEGORY,COUNT,DATE\nVELOX,,Parcel Select & PS Lightweight,2,01/17/2020\n\n7616958744153341463918739483967229\n8154555556685369003771751237430584\n",
+      "file_name": "shipping_control_document.csv"
+    }
+  ],
+  "html_body": "Hello all,<br/>\n<br/>\nPlease see attached pre-alert for inbound Shipment under MAWB 180-62148741<br/>\n<br/>\nThanks",
+  "subject": "Import Pre Alert – JFK 180-62148741",
+  "to": "ostretsovaa@gmail.com"
+}`)
+	emailToSendMessage := &email{}
+	err := json.Unmarshal(jsonEncodedMsg, emailToSendMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createEmail("from@someone.com", emailToSendMessage)
 }

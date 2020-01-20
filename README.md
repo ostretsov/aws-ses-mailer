@@ -13,6 +13,7 @@ Expected queue message:
 {
   "to": "OstretsovAA@gmail.com,someone@else.com",
   "cc": "sendcopy@here.com,and@here.com",
+  "reply_to": "reply@to.com",
   "html_body": "<strong>html</strong> body",
   "text_body": "text body",
   "subject": "test message",

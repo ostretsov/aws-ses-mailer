@@ -38,6 +38,7 @@ func (e errAWSSendingEmail) Unwrap() error {
 type email struct {
 	To       string        `json:"to"`
 	Cc       string        `json:"cc"`
+	ReplyTo  string        `json:"reply_to"`
 	Subject  string        `json:"subject"`
 	HTMLBody string        `json:"html_body"`
 	TextBody string        `json:"text_body"`
@@ -118,6 +119,7 @@ func main() {
 	getEnv("AMQP_URL")
 	getEnv("AMQP_QUEUE")
 	getEnv("AWS_VERIFIED_FROM_EMAIL_ADDRESS")
+	fromAddress := getEnv("AWS_VERIFIED_FROM_EMAIL_ADDRESS")
 
 	for message := range rabbitMQMessageChan() {
 		emailToSendMessage := &email{}
@@ -134,7 +136,8 @@ func main() {
 			log.Fatal("validation error", err)
 		}
 
-		err = sendEmail(emailToSendMessage)
+		sesEmail := createEmail(fromAddress, emailToSendMessage)
+		err = sendEmail(sesEmail)
 		if err != nil {
 			if err == errAWSSessionCreation {
 				message.Nack(false, true)
@@ -155,20 +158,17 @@ func main() {
 	log.Fatal("must not be finished")
 }
 
-func sendEmail(emailToSendMessage *email) error {
-	fromAddress := getEnv("AWS_VERIFIED_FROM_EMAIL_ADDRESS")
-	sess, err := session.NewSession()
-	if err != nil {
-		return errAWSSessionCreation
-	}
-	svc := ses.New(sess)
-
+func createEmail(fromAddress string, emailToSendMessage *email) *ses.SendRawEmailInput {
 	email := gomail.NewMessage()
 	email.SetHeader("From", fromAddress)
 	email.SetHeader("To", strings.Split(emailToSendMessage.To, ",")...)
 	if len(emailToSendMessage.Cc) > 0 {
 		cc := strings.Split(emailToSendMessage.Cc, ",")
 		email.SetHeader("Cc", cc...)
+	}
+	if len(emailToSendMessage.ReplyTo) > 0 {
+		replyTo := strings.Split(emailToSendMessage.ReplyTo, ",")
+		email.SetHeader("Reply-To", replyTo...)
 	}
 	email.SetHeader("Subject", emailToSendMessage.Subject)
 	if len(emailToSendMessage.HTMLBody) > 0 {
@@ -195,6 +195,15 @@ func sendEmail(emailToSendMessage *email) error {
 		RawMessage: &ses.RawMessage{Data: emailRaw.Bytes()},
 	}
 
+	return input
+}
+
+func sendEmail(input *ses.SendRawEmailInput) error {
+	sess, err := session.NewSession()
+	if err != nil {
+		return errAWSSessionCreation
+	}
+	svc := ses.New(sess)
 	_, err = svc.SendRawEmail(input)
 
 	if err != nil {
